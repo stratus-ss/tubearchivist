@@ -48,8 +48,7 @@ class Command(BaseCommand):
     def _sync_redis_state(self):
         """make sure redis gets new config.json values"""
         self.stdout.write("[1] set new config.json values")
-        needs_update = AppConfig().load_new_defaults()
-        if needs_update:
+        if needs_update := AppConfig().load_new_defaults():
             self.stdout.write(
                 self.style.SUCCESS("    ✓ new config values set")
             )
@@ -105,8 +104,7 @@ class Command(BaseCommand):
         self.stdout.write("[4] clear task leftovers")
         TaskManager().fail_pending()
         redis_con = RedisArchivist()
-        to_delete = redis_con.list_keys("message:")
-        if to_delete:
+        if to_delete := redis_con.list_keys("message:"):
             for key in to_delete:
                 redis_con.del_message(key)
 
@@ -118,8 +116,7 @@ class Command(BaseCommand):
         """clear leftover files from dl cache"""
         self.stdout.write("[5] clear leftover files from dl cache")
         config = AppConfig().config
-        leftover_files = clear_dl_cache(config)
-        if leftover_files:
+        if leftover_files := clear_dl_cache(config):
             self.stdout.write(
                 self.style.SUCCESS(f"    ✓ cleared {leftover_files} files")
             )
@@ -129,8 +126,7 @@ class Command(BaseCommand):
     def _version_check(self):
         """remove new release key if updated now"""
         self.stdout.write("[6] check for first run after update")
-        new_version = ReleaseVersion().is_updated()
-        if new_version:
+        if new_version := ReleaseVersion().is_updated():
             self.stdout.write(
                 self.style.SUCCESS(f"    ✓ update to {new_version} completed")
             )
@@ -181,7 +177,7 @@ class Command(BaseCommand):
             }
             path = f"ta_video/_update/{youtube_id}"
             response, status_code = ElasticWrap(path).post(data=vid_data)
-            if not status_code == 200:
+            if status_code != 200:
                 self.stdout.errors(
                     f"    update failed: {path}, {response}, {status_code}"
                 )
@@ -201,8 +197,7 @@ class Command(BaseCommand):
         path = "ta_download/_update_by_query"
         response, status_code = ElasticWrap(path).post(data=data)
         if status_code == 200:
-            updated = response.get("updated", 0)
-            if updated:
+            if updated := response.get("updated", 0):
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"    ✓ {updated} videos updated in ta_download"

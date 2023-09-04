@@ -77,7 +77,7 @@ class YoutubeChannel(YouTubeItem):
             return False
 
         joined = " ".join(tags)
-        return [i.strip() for i in joined.split('"') if i and not i == " "]
+        return [i.strip() for i in joined.split('"') if i and i != " "]
 
     def _get_thumb_art(self):
         """extract thumb art"""
@@ -97,7 +97,7 @@ class YoutubeChannel(YouTubeItem):
         for i in self.youtube_meta["thumbnails"]:
             if not i.get("width"):
                 continue
-            if i["width"] // i["height"] < 2 and not i["width"] == i["height"]:
+            if i["width"] // i["height"] < 2 and i["width"] != i["height"]:
                 return i["url"]
 
         return False
@@ -165,7 +165,7 @@ class YoutubeChannel(YouTubeItem):
         # add ingest pipeline
         processors = []
         for field, value in self.json_data.items():
-            line = {"set": {"field": "channel." + field, "value": value}}
+            line = {"set": {"field": f"channel.{field}", "value": value}}
             processors.append(line)
         data = {"description": self.youtube_id, "processors": processors}
         ingest_path = f"_ingest/pipeline/{self.youtube_id}"
@@ -177,11 +177,10 @@ class YoutubeChannel(YouTubeItem):
 
     def get_folder_path(self):
         """get folder where media files get stored"""
-        folder_path = os.path.join(
+        return os.path.join(
             self.app_conf["videos"],
             self.json_data["channel_id"],
         )
-        return folder_path
 
     def delete_es_videos(self):
         """delete all channel documents from elasticsearch"""
@@ -251,7 +250,7 @@ class YoutubeChannel(YouTubeItem):
                 self._notify_single_playlist(idx, total)
 
             self._index_single_playlist(playlist, all_youtube_ids)
-            print("add playlist: " + playlist[1])
+            print(f"add playlist: {playlist[1]}")
 
     def _notify_single_playlist(self, idx, total):
         """send notification"""
@@ -286,9 +285,7 @@ class YoutubeChannel(YouTubeItem):
         handler = queue.PendingList()
         handler.get_download()
         handler.get_indexed()
-        all_youtube_ids = [i["youtube_id"] for i in handler.all_videos]
-
-        return all_youtube_ids
+        return [i["youtube_id"] for i in handler.all_videos]
 
     def get_channel_videos(self):
         """get all videos from channel"""
@@ -298,16 +295,12 @@ class YoutubeChannel(YouTubeItem):
             },
             "_source": ["youtube_id", "vid_type"],
         }
-        all_videos = IndexPaginate("ta_video", data).get_results()
-        return all_videos
+        return IndexPaginate("ta_video", data).get_results()
 
     def get_all_playlists(self):
         """get all playlists owned by this channel"""
-        url = (
-            f"https://www.youtube.com/channel/{self.youtube_id}"
-            + "/playlists?view=1&sort=dd&shelf_id=0"
-        )
         obs = {"skip_download": True, "extract_flat": True}
+        url = f"https://www.youtube.com/channel/{self.youtube_id}/playlists?view=1&sort=dd&shelf_id=0"
         playlists = YtWrap(obs, self.config).extract(url)
         all_entries = [(i["id"], i["title"]) for i in playlists["entries"]]
         self.all_playlists = all_entries
@@ -322,8 +315,7 @@ class YoutubeChannel(YouTubeItem):
 
         data = {"query": {"bool": {"must": must_list}}}
 
-        all_playlists = IndexPaginate("ta_playlist", data).get_results()
-        return all_playlists
+        return IndexPaginate("ta_playlist", data).get_results()
 
     def get_overwrites(self):
         """get all per channel overwrites"""

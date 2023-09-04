@@ -118,9 +118,7 @@ class YoutubePlaylist(YouTubeItem):
                     "params": {"playlist": self.youtube_id},
                 }
             }
-            bulk_list.append(json.dumps(action))
-            bulk_list.append(json.dumps(source))
-
+            bulk_list.extend((json.dumps(action), json.dumps(source)))
         # add last newline
         bulk_list.append("\n")
         query_str = "\n".join(bulk_list)
@@ -146,7 +144,7 @@ class YoutubePlaylist(YouTubeItem):
         all_entries = [i for i in all_entries_available if i["downloaded"]]
         current = [i for i in all_entries if i["youtube_id"] == youtube_id]
         # stop if not found or playlist of 1
-        if not current or not len(all_entries) > 1:
+        if not current or len(all_entries) <= 1:
             return
 
         current_idx = all_entries.index(current[0])

@@ -32,8 +32,7 @@ class AppConfig:
 
         if self.user_id:
             key = f"{self.user_id}:page_size"
-            page_size = RedisArchivist().get_message(key)["status"]
-            if page_size:
+            if page_size := RedisArchivist().get_message(key)["status"]:
                 config["archive"]["page_size"] = page_size
 
         config["application"].update(self.get_config_env())
@@ -54,7 +53,7 @@ class AppConfig:
         es_pass = os.environ.get("ELASTIC_PASSWORD")
         es_user = os.environ.get("ELASTIC_USER", default="elastic")
 
-        application = {
+        return {
             "REDIS_HOST": os.environ.get("REDIS_HOST"),
             "es_url": os.environ.get("ES_URL"),
             "es_auth": (es_user, es_pass),
@@ -63,19 +62,13 @@ class AppConfig:
             "enable_cast": bool(os.environ.get("ENABLE_CAST")),
         }
 
-        return application
-
     @staticmethod
     def get_config_redis():
         """read config json set from redis to overwrite defaults"""
         for i in range(10):
             try:
                 config = RedisArchivist().get_message("config")
-                if not list(config.values())[0]:
-                    return False
-
-                return config
-
+                return False if not list(config.values())[0] else config
             except Exception:  # pylint: disable=broad-except
                 print(f"... Redis connection failed, retry [{i}/10]")
                 sleep(3)
@@ -220,10 +213,7 @@ class ScheduleBuilder:
             if key in self.CONFIG and value:
                 redis_config["scheduler"][key] = int(value)
             if key in self.NOTIFY and value:
-                if value == "0":
-                    to_write = False
-                else:
-                    to_write = value
+                to_write = False if value == "0" else value
                 redis_config["scheduler"][key] = to_write
 
         RedisArchivist().set_message("config", redis_config, save=True)
@@ -248,12 +238,7 @@ class ScheduleBuilder:
             raise ValueError
 
         keys = ["minute", "hour", "day_of_week"]
-        if value == "auto":
-            # set to sensible default
-            values = self.SCHEDULES[key].split()
-        else:
-            values = value.split()
-
+        values = self.SCHEDULES[key].split() if value == "auto" else value.split()
         if len(keys) != len(values):
             print(f"failed to parse {value} for {key}")
             raise ValueError("invalid input")
@@ -293,22 +278,15 @@ class ScheduleBuilder:
         schedule_dict = {}
 
         for schedule_item in self.SCHEDULES:
-            item_conf = self.config["scheduler"][schedule_item]
-            if not item_conf:
-                continue
-
-            schedule_dict.update(
-                {
-                    f"schedule_{schedule_item}": {
-                        "task": schedule_item,
-                        "schedule": crontab(
-                            minute=item_conf["minute"],
-                            hour=item_conf["hour"],
-                            day_of_week=item_conf["day_of_week"],
-                        ),
-                    }
+            if item_conf := self.config["scheduler"][schedule_item]:
+                schedule_dict[f"schedule_{schedule_item}"] = {
+                    "task": schedule_item,
+                    "schedule": crontab(
+                        minute=item_conf["minute"],
+                        hour=item_conf["hour"],
+                        day_of_week=item_conf["day_of_week"],
+                    ),
                 }
-            )
 
         return schedule_dict
 
@@ -385,7 +363,4 @@ class ReleaseVersion:
     def get_update(self):
         """return new version dict if available"""
         message = RedisArchivist().get_message(self.NEW_KEY)
-        if not message.get("status"):
-            return False
-
-        return message
+        return False if not message.get("status") else message

@@ -36,13 +36,11 @@ class ElasticIndex:
         """
 
         if self.expected_map:
-            rebuild = self.validate_mappings()
-            if rebuild:
+            if rebuild := self.validate_mappings():
                 return rebuild
 
         if self.expected_set:
-            rebuild = self.validate_settings()
-            if rebuild:
+            if rebuild := self.validate_settings():
                 return rebuild
 
         return False
@@ -61,7 +59,7 @@ class ElasticIndex:
                     if key_n not in now_map[key]["properties"].keys():
                         print(f"detected mapping change: {key_n}, {value_n}")
                         return True
-                    if not value_n == now_map[key]["properties"][key_n]:
+                    if value_n != now_map[key]["properties"][key_n]:
                         print(f"detected mapping change: {key_n}, {value_n}")
                         return True
 
@@ -71,7 +69,7 @@ class ElasticIndex:
             if key not in now_map.keys():
                 print(f"detected mapping change: {key}, {value}")
                 return True
-            if not value == now_map[key]:
+            if value != now_map[key]:
                 print(f"detected mapping change: {key}, {value}")
                 return True
 
@@ -87,7 +85,7 @@ class ElasticIndex:
                 print(key, value)
                 return True
 
-            if not value == now_set[key]:
+            if value != now_set[key]:
                 print(key, value)
                 return True
 
@@ -119,7 +117,7 @@ class ElasticIndex:
         """delete index passed as argument"""
         path = f"ta_{self.index_name}"
         if backup:
-            path = path + "_backup"
+            path = f"{path}_backup"
 
         _, _ = ElasticWrap(path).delete()
 
@@ -132,9 +130,9 @@ class ElasticIndex:
 
         data = {}
         if self.expected_set:
-            data.update({"settings": self.expected_set})
+            data["settings"] = self.expected_set
         if self.expected_map:
-            data.update({"mappings": {"properties": self.expected_map}})
+            data["mappings"] = {"properties": self.expected_map}
 
         _, _ = ElasticWrap(path).put(data)
 
@@ -155,8 +153,7 @@ class ElasitIndexWrap:
                 handler.create_blank()
                 continue
 
-            rebuild = handler.validate()
-            if rebuild:
+            if rebuild := handler.validate():
                 self._check_backup()
                 handler.rebuild_index()
                 continue

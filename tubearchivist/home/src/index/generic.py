@@ -120,7 +120,7 @@ class Pagination:
                 i for i in range(page_get - 1, page_get - 6, -1) if i > 1
             ]
             prev_pages.reverse()
-        pagination = {
+        return {
             "page_size": self.page_size,
             "page_from": page_from,
             "prev_pages": prev_pages,
@@ -128,8 +128,6 @@ class Pagination:
             "max_hits": False,
             "params": self.params,
         }
-
-        return pagination
 
     def validate(self, total_hits):
         """validate pagination with total_hits after making api call"""

@@ -23,8 +23,7 @@ class YoutubeSubtitle:
 
     def _sub_conf_parse(self):
         """add additional conf values to self"""
-        languages_raw = self.video.config["downloads"]["subtitle"]
-        if languages_raw:
+        if languages_raw := self.video.config["downloads"]["subtitle"]:
             self.languages = [i.strip() for i in languages_raw.split(",")]
 
     def get_subtitles(self):
@@ -36,14 +35,12 @@ class YoutubeSubtitle:
 
         relevant_subtitles = []
         for lang in self.languages:
-            user_sub = self._get_user_subtitles(lang)
-            if user_sub:
+            if user_sub := self._get_user_subtitles(lang):
                 relevant_subtitles.append(user_sub)
                 continue
 
             if self.video.config["downloads"]["subtitle_source"] == "auto":
-                auto_cap = self._get_auto_caption(lang)
-                if auto_cap:
+                if auto_cap := self._get_auto_caption(lang):
                     relevant_subtitles.append(auto_cap)
 
         return relevant_subtitles
@@ -166,11 +163,11 @@ class YoutubeSubtitle:
         # delete files
         if subtitles:
             files = [i["media_url"] for i in subtitles]
-        else:
-            if not self.video.json_data.get("subtitles"):
-                return
-
+        elif self.video.json_data.get("subtitles"):
             files = [i["media_url"] for i in self.video.json_data["subtitles"]]
+
+        else:
+            return
 
         for file_name in files:
             file_path = os.path.join(videos_base, file_name)
@@ -277,13 +274,9 @@ class SubtitleParser:
         for document in documents:
             document_id = document.get("subtitle_fragment_id")
             action = {"index": {"_index": "ta_subtitle", "_id": document_id}}
-            bulk_list.append(json.dumps(action))
-            bulk_list.append(json.dumps(document))
-
+            bulk_list.extend((json.dumps(action), json.dumps(document)))
         bulk_list.append("\n")
-        query_str = "\n".join(bulk_list)
-
-        return query_str
+        return "\n".join(bulk_list)
 
     def _create_documents(self, video, source):
         """process documents"""

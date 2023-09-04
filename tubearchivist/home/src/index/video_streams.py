@@ -28,11 +28,7 @@ class DurationConverter:
             check=True,
         )
         duration_raw = duration.stdout.decode().strip()
-        if duration_raw == "N/A":
-            return 0
-
-        duration_sec = int(float(duration_raw))
-        return duration_sec
+        return 0 if duration_raw == "N/A" else int(float(duration_raw))
 
     @staticmethod
     def get_str(seconds):
@@ -42,19 +38,15 @@ class DurationConverter:
             return "NA"
 
         days = int(seconds // (24 * 3600))
-        hours = int((seconds % (24 * 3600)) // 3600)
         minutes = int((seconds % 3600) // 60)
-        seconds = int(seconds % 60)
-
-        duration_str = str()
-        if days:
-            duration_str = f"{days}d "
-        if hours:
+        duration_str = f"{days}d " if days else str()
+        if hours := int((seconds % (24 * 3600)) // 3600):
             duration_str = duration_str + str(hours).zfill(2) + ":"
         if minutes:
             duration_str = duration_str + str(minutes).zfill(2) + ":"
         else:
-            duration_str = duration_str + "00:"
+            duration_str = f"{duration_str}00:"
+        seconds = int(seconds % 60)
         duration_str = duration_str + str(seconds).zfill(2)
         return duration_str
 

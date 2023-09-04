@@ -286,8 +286,7 @@ class VideoDownloader:
                 self.config["downloads"]["limit_speed"] * 1024
             )
 
-        throttle = self.config["downloads"]["throttledratelimit"]
-        if throttle:
+        if throttle := self.config["downloads"]["throttledratelimit"]:
             self.obs["throttledratelimit"] = throttle * 1024
 
     def _build_obs_postprocessors(self):
@@ -295,25 +294,24 @@ class VideoDownloader:
         postprocessors = []
 
         if self.config["downloads"]["add_metadata"]:
-            postprocessors.append(
-                {
-                    "key": "FFmpegMetadata",
-                    "add_chapters": True,
-                    "add_metadata": True,
-                }
+            postprocessors.extend(
+                (
+                    {
+                        "key": "FFmpegMetadata",
+                        "add_chapters": True,
+                        "add_metadata": True,
+                    },
+                    {
+                        "key": "MetadataFromField",
+                        "formats": [
+                            "%(title)s:%(meta_title)s",
+                            "%(uploader)s:%(meta_artist)s",
+                            ":(?P<album>)",
+                        ],
+                        "when": "pre_process",
+                    },
+                )
             )
-            postprocessors.append(
-                {
-                    "key": "MetadataFromField",
-                    "formats": [
-                        "%(title)s:%(meta_title)s",
-                        "%(uploader)s:%(meta_artist)s",
-                        ":(?P<album>)",
-                    ],
-                    "when": "pre_process",
-                }
-            )
-
         if self.config["downloads"]["add_thumbnail"]:
             postprocessors.append(
                 {
@@ -327,8 +325,7 @@ class VideoDownloader:
 
     def get_format_overwrites(self, youtube_id):
         """get overwrites from single video"""
-        overwrites = self.video_overwrites.get(youtube_id, False)
-        if overwrites:
+        if overwrites := self.video_overwrites.get(youtube_id, False):
             return overwrites.get("download_format", False)
 
         return False
@@ -336,8 +333,7 @@ class VideoDownloader:
     def _dl_single_vid(self, youtube_id):
         """download single video"""
         obs = self.obs.copy()
-        format_overwrite = self.get_format_overwrites(youtube_id)
-        if format_overwrite:
+        if format_overwrite := self.get_format_overwrites(youtube_id):
             obs["format"] = format_overwrite
 
         dl_cache = self.config["application"]["cache_dir"] + "/download/"
@@ -418,6 +414,5 @@ class VideoDownloader:
             },
         }
         response, _ = ElasticWrap(path, config=self.config).post(data=data)
-        updated = response.get("updated")
-        if updated:
+        if updated := response.get("updated"):
             print(f"[download] reset auto start on {updated} videos.")

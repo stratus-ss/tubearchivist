@@ -35,8 +35,7 @@ class WatchState:
     def _dedect_type(self):
         """find youtube id type"""
         url_process = Parser(self.youtube_id).parse()
-        url_type = url_process[0]["type"]
-        return url_type
+        return url_process[0]["type"]
 
     def change_vid_state(self):
         """change watched state of video"""

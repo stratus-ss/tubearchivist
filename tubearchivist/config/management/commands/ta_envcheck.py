@@ -114,8 +114,7 @@ class Command(BaseCommand):
 
         regex = re.compile(r"listen [0-9]{1,5}")
         to_overwrite = f"listen {overwrite}"
-        changed = file_overwrite(NGINX, regex, to_overwrite)
-        if changed:
+        if changed := file_overwrite(NGINX, regex, to_overwrite):
             message = f"    ✓ TA_PORT changed to {overwrite}"
         else:
             message = f"    ✓ TA_PORT already set to {overwrite}"
@@ -139,9 +138,7 @@ class Command(BaseCommand):
         # uwsgi
         regex = re.compile(r"socket = :[0-9]{1,5}")
         to_overwrite = f"socket = :{overwrite}"
-        changed = file_overwrite(UWSGI, regex, to_overwrite)
-
-        if changed:
+        if changed := file_overwrite(UWSGI, regex, to_overwrite):
             message = f"    ✓ TA_UWSGI_PORT changed to {overwrite}"
         else:
             message = f"    ✓ TA_UWSGI_PORT already set to {overwrite}"
@@ -168,8 +165,7 @@ class Command(BaseCommand):
     def _create_superuser(self):
         """create superuser if not exist"""
         self.stdout.write("[6] create superuser")
-        is_created = Account.objects.filter(is_superuser=True)
-        if is_created:
+        if is_created := Account.objects.filter(is_superuser=True):
             message = "    superuser already created"
             self.stdout.write(self.style.SUCCESS(message))
             return

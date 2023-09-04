@@ -22,8 +22,7 @@ class PostData:
     def run_task(self):
         """execute and return task result"""
         to_exec = self.exec_map()
-        task_result = to_exec()
-        return task_result
+        return to_exec()
 
     def exec_map(self):
         """map dict key and return function to execute"""

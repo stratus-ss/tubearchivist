@@ -138,14 +138,12 @@ class SearchForm:
                 elif result["_index"] == "ta_subtitle":
                     fulltext_results.append(result)
 
-        all_results = {
+        return {
             "video_results": video_results,
             "channel_results": channel_results,
             "playlist_results": playlist_results,
             "fulltext_results": fulltext_results,
         }
-
-        return all_results
 
 
 class SearchParser:
@@ -228,10 +226,7 @@ class SearchParser:
 
     def _delete_unset(self):
         """delete unset keys"""
-        new_query_map = {}
-        for key, value in self.query_map.items():
-            if value:
-                new_query_map.update({key: value})
+        new_query_map = {key: value for key, value in self.query_map.items() if value}
         self.query_map = new_query_map
 
     def _match_data_types(self):
@@ -276,15 +271,14 @@ class QueryBuilder:
 
         build_must_list = exec_map[self.query_type]
 
-        if self.query_type == "full":
-            query = build_must_list()
-        else:
-            query = {
+        return (
+            build_must_list()
+            if self.query_type == "full"
+            else {
                 "size": 30,
                 "query": {"bool": {"must": build_must_list()}},
             }
-
-        return query
+        )
 
     def _get_fuzzy(self):
         """return fuziness valuee"""
@@ -295,10 +289,7 @@ class QueryBuilder:
         if not fuzzy_value.isdigit():
             return "auto"
 
-        if int(fuzzy_value) > 2:
-            return "2"
-
-        return fuzzy_value
+        return "2" if int(fuzzy_value) > 2 else fuzzy_value
 
     def _build_simple(self):
         """build simple cross index query"""
@@ -463,7 +454,7 @@ class QueryBuilder:
                 {"term": {"subtitle_source": {"value": source[0]}}}
             )
 
-        query = {
+        return {
             "size": 30,
             "_source": {"excludes": "subtitle_line"},
             "query": {"bool": {"must": must_list}},
@@ -477,5 +468,3 @@ class QueryBuilder:
                 }
             },
         }
-
-        return query

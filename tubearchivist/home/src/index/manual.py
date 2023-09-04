@@ -120,11 +120,14 @@ class ImportFolderScanner:
     def _detect_type(self, file_path, ext):
         """detect metadata type for file"""
 
-        for key, value in self.EXT_MAP.items():
-            if ext.lower() in value:
-                return key, file_path
-
-        return False, False
+        return next(
+            (
+                (key, file_path)
+                for key, value in self.EXT_MAP.items()
+                if ext.lower() in value
+            ),
+            (False, False),
+        )
 
     def process_videos(self):
         """loop through all videos"""
@@ -152,7 +155,7 @@ class ImportFolderScanner:
         """send notification back to task"""
         filename = os.path.split(current_video["media"])[-1]
         if len(filename) > 50:
-            filename = filename[:50] + "..."
+            filename = f"{filename[:50]}..."
 
         message = [
             f"Import queue processing video {idx + 1}/{len(self.to_import)}",
@@ -163,13 +166,11 @@ class ImportFolderScanner:
 
     def _detect_youtube_id(self, current_video):
         """find video id from filename or json"""
-        youtube_id = self._extract_id_from_filename(current_video["media"])
-        if youtube_id:
+        if youtube_id := self._extract_id_from_filename(current_video["media"]):
             current_video["video_id"] = youtube_id
             return
 
-        youtube_id = self._extract_id_from_json(current_video["metadata"])
-        if youtube_id:
+        if youtube_id := self._extract_id_from_json(current_video["metadata"]):
             current_video["video_id"] = youtube_id
             return
 
@@ -182,11 +183,8 @@ class ImportFolderScanner:
         expects filename ending in [<youtube_id>].<ext>
         """
         base_name, _ = os.path.splitext(file_name)
-        id_search = re.search(r"\[([a-zA-Z0-9_-]{11})\]$", base_name)
-        if id_search:
-            youtube_id = id_search.group(1)
-            return youtube_id
-
+        if id_search := re.search(r"\[([a-zA-Z0-9_-]{11})\]$", base_name):
+            return id_search.group(1)
         print(f"id extraction failed from filename: {file_name}")
 
         return False
@@ -197,9 +195,7 @@ class ImportFolderScanner:
         with open(json_path, "r", encoding="utf-8") as f:
             json_content = f.read()
 
-        youtube_id = json.loads(json_content)["id"]
-
-        return youtube_id
+        return json.loads(json_content)["id"]
 
     def _dump_thumb(self, current_video):
         """extract embedded thumb before converting"""
@@ -216,8 +212,7 @@ class ImportFolderScanner:
                 new_path = self.dump_mpv_thumb(media_path, idx, thumb_type)
 
         elif ext == ".mp4":
-            thumb_type = self.get_mp4_thumb_type(media_path)
-            if thumb_type:
+            if thumb_type := self.get_mp4_thumb_type(media_path):
                 new_path = self.dump_mp4_thumb(media_path, thumb_type)
 
         if new_path:
@@ -262,11 +257,14 @@ class ImportFolderScanner:
         """detect filetype of embedded thumbnail"""
         streams = self._get_streams(media_path)
 
-        for stream in streams["streams"]:
-            if stream["codec_name"] in ["png", "jpg"]:
-                return stream["codec_name"]
-
-        return False
+        return next(
+            (
+                stream["codec_name"]
+                for stream in streams["streams"]
+                if stream["codec_name"] in ["png", "jpg"]
+            ),
+            False,
+        )
 
     def _convert_thumb(self, current_video):
         """convert all thumbnails to jpg"""
@@ -330,9 +328,7 @@ class ImportFolderScanner:
             capture_output=True,
             check=True,
         )
-        streams = json.loads(streams_raw.stdout.decode())
-
-        return streams
+        return json.loads(streams_raw.stdout.decode())
 
     @staticmethod
     def dump_mp4_thumb(media_path, thumb_type):
@@ -365,7 +361,7 @@ class ImportFolderScanner:
         if ext == ".mp4":
             return
 
-        new_path = base_path + ".mp4"
+        new_path = f"{base_path}.mp4"
         subprocess.run(
             [
                 "ffmpeg",

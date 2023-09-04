@@ -59,7 +59,7 @@ class Comments:
         max_comments_list = [i.strip() for i in max_comments.split(",")]
         comment_sort = self.config["downloads"]["comment_sort"]
 
-        yt_obs = {
+        return {
             "check_formats": None,
             "skip_download": True,
             "getcomments": True,
@@ -71,8 +71,6 @@ class Comments:
                 }
             },
         }
-
-        return yt_obs
 
     def get_yt_comments(self):
         """get comments from youtube"""
@@ -91,11 +89,8 @@ class Comments:
 
         if comments_raw:
             for comment in comments_raw:
-                cleaned_comment = self.clean_comment(comment)
-                if not cleaned_comment:
-                    continue
-
-                comments.append(cleaned_comment)
+                if cleaned_comment := self.clean_comment(comment):
+                    comments.append(cleaned_comment)
 
         self.comments_format = comments
 
@@ -115,7 +110,7 @@ class Comments:
 
         time_text = time_text_datetime.strftime(format_string)
 
-        cleaned_comment = {
+        return {
             "comment_id": comment["id"],
             "comment_text": comment["text"].replace("\xa0", ""),
             "comment_timestamp": comment["timestamp"],
@@ -130,8 +125,6 @@ class Comments:
             ),
             "comment_parent": comment["parent"],
         }
-
-        return cleaned_comment
 
     def upload_comments(self):
         """upload comments to es"""
@@ -172,10 +165,6 @@ class Comments:
         es_comments = self.get_es_comments()
 
         if not self.comments_format:
-            return
-
-        if not self.comments_format and es_comments["comment_comments"]:
-            # don't overwrite comments in es
             return
 
         self.delete_comments()

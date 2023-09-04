@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+
 import hashlib
 from os import environ, path
 from pathlib import Path
@@ -153,11 +154,7 @@ if bool(environ.get("TA_LDAP")):
     AUTH_LDAP_USER_SEARCH = LDAPSearch(
         AUTH_LDAP_USER_BASE,
         ldap.SCOPE_SUBTREE,
-        "(&("
-        + AUTH_LDAP_USER_ATTR_MAP_USERNAME
-        + "=%(user)s)"
-        + AUTH_LDAP_USER_FILTER
-        + ")",
+        f"(&({AUTH_LDAP_USER_ATTR_MAP_USERNAME}=%(user)s){AUTH_LDAP_USER_FILTER})",
     )
 
     global AUTH_LDAP_USER_ATTR_MAP
@@ -182,14 +179,6 @@ if bool(environ.get("TA_LDAP")):
 
 CACHE_DIR = AppConfig().config["application"]["cache_dir"]
 DB_PATH = path.join(CACHE_DIR, "db.sqlite3")
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": DB_PATH,
-    }
-}
-
-
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
@@ -215,6 +204,12 @@ AUTH_USER_MODEL = "home.Account"
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
 LANGUAGE_CODE = "en-us"
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": DB_PATH,
+    }
+}
 TIME_ZONE = environ.get("TZ") or "UTC"
 USE_I18N = True
 USE_L10N = True
