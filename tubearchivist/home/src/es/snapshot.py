@@ -29,9 +29,7 @@ class ElasticSnapshot:
     def _get_all_indices(self):
         """return all indices names managed by TA"""
         mapping = get_mapping()
-        all_indices = [f"ta_{i['index_name']}" for i in mapping]
-
-        return all_indices
+        return [f"ta_{i['index_name']}" for i in mapping]
 
     def setup(self):
         """setup the snapshot in ES, create or update if needed"""
@@ -44,8 +42,7 @@ class ElasticSnapshot:
         if not policy_exists:
             self.create_policy()
 
-        is_outdated = self._needs_startup_snapshot()
-        if is_outdated:
+        if is_outdated := self._needs_startup_snapshot():
             _ = self.take_snapshot_now()
 
     def _check_repo_exists(self):
@@ -93,10 +90,7 @@ class ElasticSnapshot:
         """get policy from es"""
         path = f"_slm/policy/{self.POLICY}"
         response, statuscode = ElasticWrap(path).get()
-        if statuscode != 200:
-            return False
-
-        return response[self.POLICY]
+        return False if statuscode != 200 else response[self.POLICY]
 
     def create_policy(self):
         """create snapshot lifetime policy"""
@@ -136,7 +130,7 @@ class ElasticSnapshot:
 
         last_stamp = snap_dicts[0]["end_stamp"]
         now = int(datetime.now().timestamp())
-        outdated = (now - last_stamp) / 60 / 60 > 24
+        outdated = now - last_stamp > 86400
         if outdated:
             print("snapshot: is outdated, create new now")
 
@@ -220,7 +214,7 @@ class ElasticSnapshot:
 
     def _parse_single_snapshot(self, snapshot):
         """extract relevant metadata from single snapshot"""
-        snap_dict = {
+        return {
             "id": snapshot["snapshot"],
             "state": snapshot["state"],
             "es_version": snapshot["version"],
@@ -229,7 +223,6 @@ class ElasticSnapshot:
             "end_stamp": snapshot["end_time_in_millis"] // 1000,
             "duration_s": snapshot["duration_in_millis"] // 1000,
         }
-        return snap_dict
 
     def _build_policy_details(self):
         """get additional policy details"""
@@ -241,12 +234,11 @@ class ElasticSnapshot:
         next_exec_date = datetime.fromtimestamp(next_exec)
         next_exec_str = next_exec_date.strftime("%Y-%m-%d %H:%M")
         expire_after = policy["policy"]["retention"]["expire_after"]
-        policy_metadata = {
+        return {
             "next_exec": next_exec,
             "next_exec_str": next_exec_str,
             "expire_after": expire_after,
         }
-        return policy_metadata
 
     @staticmethod
     def _date_converter(date_utc):
@@ -255,9 +247,7 @@ class ElasticSnapshot:
         date = datetime.strptime(date_utc, expected_format)
         local_datetime = date.replace(tzinfo=ZoneInfo("localtime"))
         converted = local_datetime.astimezone(ZoneInfo(environ.get("TZ")))
-        converted_str = converted.strftime("%Y-%m-%d %H:%M")
-
-        return converted_str
+        return converted.strftime("%Y-%m-%d %H:%M")
 
     def restore_all(self, snapshot_name):
         """restore snapshot by name"""

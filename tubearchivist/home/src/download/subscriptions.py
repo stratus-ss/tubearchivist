@@ -27,15 +27,11 @@ class ChannelSubscription:
         """get a list of all channels subscribed to"""
         data = {
             "sort": [{"channel_name.keyword": {"order": "asc"}}],
+            "query": {"term": {"channel_subscribed": {"value": True}}}
+            if subscribed_only
+            else {"match_all": {}},
         }
-        if subscribed_only:
-            data["query"] = {"term": {"channel_subscribed": {"value": True}}}
-        else:
-            data["query"] = {"match_all": {}}
-
-        all_channels = IndexPaginate("ta_channel", data).get_results()
-
-        return all_channels
+        return IndexPaginate("ta_channel", data).get_results()
 
     def get_last_youtube_videos(
         self, channel_id, limit=True, query_filter=VideoTypeEnum.UNKNOWN
@@ -54,14 +50,12 @@ class ChannelSubscription:
                 obs["playlistend"] = limit_amount
 
             vid_type = vid_type_enum.value
-            channel = YtWrap(obs, self.config).extract(
+            if channel := YtWrap(obs, self.config).extract(
                 f"https://www.youtube.com/channel/{channel_id}/{vid_type}"
-            )
-            if not channel:
-                continue
-            last_videos.extend(
-                [(i["id"], i["title"], vid_type) for i in channel["entries"]]
-            )
+            ):
+                last_videos.extend(
+                    [(i["id"], i["title"], vid_type) for i in channel["entries"]]
+                )
 
         return last_videos
 
@@ -76,11 +70,7 @@ class ChannelSubscription:
         queries = []
 
         if query_filter and query_filter.value != "unknown":
-            if limit:
-                query_limit = limit_map.get(query_filter.value)
-            else:
-                query_limit = False
-
+            query_limit = limit_map.get(query_filter.value) if limit else False
             queries.append((query_filter, query_limit))
 
             return queries
@@ -90,11 +80,7 @@ class ChannelSubscription:
                 # is deactivated in config
                 continue
 
-            if limit:
-                query_limit = default_limit
-            else:
-                query_limit = False
-
+            query_limit = default_limit if limit else False
             queries.append((VideoTypeEnum(query_item), query_limit))
 
         return queries
@@ -115,25 +101,23 @@ class ChannelSubscription:
         for idx, channel in enumerate(all_channels):
             channel_id = channel["channel_id"]
             print(f"{channel_id}: find missing videos.")
-            last_videos = self.get_last_youtube_videos(channel_id)
-
-            if last_videos:
-                for video_id, _, vid_type in last_videos:
-                    if video_id not in pending.to_skip:
-                        missing_videos.append((video_id, vid_type))
-
+            if last_videos := self.get_last_youtube_videos(channel_id):
+                missing_videos.extend(
+                    (video_id, vid_type)
+                    for video_id, _, vid_type in last_videos
+                    if video_id not in pending.to_skip
+                )
             if not self.task:
                 continue
 
-            if self.task:
-                if self.task.is_stopped():
-                    self.task.send_progress(["Received Stop signal."])
-                    break
+            if self.task.is_stopped():
+                self.task.send_progress(["Received Stop signal."])
+                break
 
-                self.task.send_progress(
-                    message_lines=[f"Scanning Channel {idx + 1}/{total}"],
-                    progress=(idx + 1) / total,
-                )
+            self.task.send_progress(
+                message_lines=[f"Scanning Channel {idx + 1}/{total}"],
+                progress=(idx + 1) / total,
+            )
 
         return missing_videos
 
@@ -159,18 +143,16 @@ class PlaylistSubscription:
         """get a list of all active playlists"""
         data = {
             "sort": [{"playlist_channel.keyword": {"order": "desc"}}],
-        }
-        data["query"] = {
-            "bool": {"must": [{"term": {"playlist_active": {"value": True}}}]}
+            "query": {
+                "bool": {"must": [{"term": {"playlist_active": {"value": True}}}]}
+            },
         }
         if subscribed_only:
             data["query"]["bool"]["must"].append(
                 {"term": {"playlist_subscribed": {"value": True}}}
             )
 
-        all_playlists = IndexPaginate("ta_playlist", data).get_results()
-
-        return all_playlists
+        return IndexPaginate("ta_playlist", data).get_results()
 
     def process_url_str(self, new_playlists, subscribed=True):
         """process playlist subscribe form url_str"""
@@ -180,7 +162,7 @@ class PlaylistSubscription:
 
         for idx, playlist in enumerate(new_playlists):
             playlist_id = playlist["url"]
-            if not playlist["type"] == "playlist":
+            if playlist["type"] != "playlist":
                 print(f"{playlist_id} not a playlist, skipping...")
                 continue
 
@@ -259,14 +241,13 @@ class PlaylistSubscription:
             if not self.task:
                 continue
 
-            if self.task:
-                self.task.send_progress(
-                    message_lines=[f"Scanning Playlists {idx + 1}/{total}"],
-                    progress=(idx + 1) / total,
-                )
-                if self.task.is_stopped():
-                    self.task.send_progress(["Received Stop signal."])
-                    break
+            self.task.send_progress(
+                message_lines=[f"Scanning Playlists {idx + 1}/{total}"],
+                progress=(idx + 1) / total,
+            )
+            if self.task.is_stopped():
+                self.task.send_progress(["Received Stop signal."])
+                break
 
         return missing_videos
 

@@ -156,8 +156,7 @@ class BaseTask(Task):
         task_id = self.request.id
         message = self.TASK_CONFIG.get(self.name).copy()
         message.update({"level": level, "id": task_id})
-        task_result = TaskManager().get_task(task_id)
-        if task_result:
+        if task_result := TaskManager().get_task(task_id):
             command = task_result.get("command", False)
             message.update({"command": command})
 
@@ -185,9 +184,7 @@ def update_subscribed(self):
     if missing_videos:
         print(missing_videos)
         extrac_dl.delay(missing_videos, auto_start=auto_start)
-        message = f"Found {len(missing_videos)} videos to add to the queue."
-        return message
-
+        return f"Found {len(missing_videos)} videos to add to the queue."
     return None
 
 
@@ -202,9 +199,7 @@ def download_pending(self, auto_only=False):
 
     manager.init(self)
     downloader = VideoDownloader(task=self)
-    videos_downloaded = downloader.run_queue(auto_only=auto_only)
-
-    if videos_downloaded:
+    if videos_downloaded := downloader.run_queue(auto_only=auto_only):
         return f"downloaded {len(videos_downloaded)} videos."
 
     return None

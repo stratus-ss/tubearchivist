@@ -78,9 +78,7 @@ class FolderMigration:
                 "subtitles",
             ],
         }
-        response = IndexPaginate("ta_video", data).get_results()
-
-        return response
+        return IndexPaginate("ta_video", data).get_results()
 
     def create_folders(self, to_migrate):
         """create required channel folders"""
@@ -165,7 +163,7 @@ class FolderMigration:
         path = "_bulk?refresh=true"
         data = "\n".join(self.bulk_list)
         response, status = ElasticWrap(path).post(data=data, ndjson=True)
-        if not status == 200:
+        if status != 200:
             print(response)
 
         self.bulk_list = []

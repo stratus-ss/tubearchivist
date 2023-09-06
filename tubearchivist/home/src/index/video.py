@@ -65,29 +65,26 @@ class SponsorBlock:
             if response.status_code == 503:
                 return False
 
-            sponsor_dict = {
+            return {
                 "last_refresh": self.last_refresh,
                 "is_enabled": True,
                 "segments": [],
             }
         else:
             all_segments = response.json()
-            sponsor_dict = self._get_sponsor_dict(all_segments)
-
-        return sponsor_dict
+            return self._get_sponsor_dict(all_segments)
 
     def _get_sponsor_dict(self, all_segments):
         """format and process response"""
         _ = [i.pop("description", None) for i in all_segments]
         has_unlocked = not any(i.get("locked") for i in all_segments)
 
-        sponsor_dict = {
+        return {
             "last_refresh": self.last_refresh,
             "has_unlocked": has_unlocked,
             "is_enabled": True,
             "segments": all_segments,
         }
-        return sponsor_dict
 
     def post_timestamps(self, youtube_id, start_time, end_time):
         """post timestamps to api"""
@@ -143,10 +140,10 @@ class YoutubeVideo(YouTubeItem, YoutubeSubtitle):
     def build_json(self, youtube_meta_overwrite=False, media_path=False):
         """build json dict of video"""
         self.get_from_youtube()
-        if not self.youtube_meta and not youtube_meta_overwrite:
-            return
-
         if not self.youtube_meta:
+            if not youtube_meta_overwrite:
+                return
+
             self.youtube_meta = youtube_meta_overwrite
             self.offline_import = True
 
@@ -352,8 +349,7 @@ class YoutubeVideo(YouTubeItem, YoutubeSubtitle):
 
     def _get_sponsorblock(self):
         """get optional sponsorblock timestamps from sponsor.ajay.app"""
-        sponsorblock = SponsorBlock().get_timestamps(self.youtube_id)
-        if sponsorblock:
+        if sponsorblock := SponsorBlock().get_timestamps(self.youtube_id):
             self.json_data["sponsorblock"] = sponsorblock
 
     def check_subtitles(self, subtitle_files=False):
@@ -364,8 +360,7 @@ class YoutubeVideo(YouTubeItem, YoutubeSubtitle):
             return
 
         handler = YoutubeSubtitle(self)
-        subtitles = handler.get_subtitles()
-        if subtitles:
+        if subtitles := handler.get_subtitles():
             indexed = handler.download_subtitles(relevant_subtitles=subtitles)
             self.json_data["subtitles"] = indexed
 
@@ -404,7 +399,7 @@ def index_new_video(
     )
     video.build_json()
     if not video.json_data:
-        raise ValueError("failed to get metadata for " + youtube_id)
+        raise ValueError(f"failed to get metadata for {youtube_id}")
 
     video.check_subtitles()
     video.upload_to_es()

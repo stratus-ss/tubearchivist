@@ -115,8 +115,7 @@ class Scanner:
             "script": {"source": to_update},
         }
         response, _ = ElasticWrap("ta_video/_update_by_query").post(data=data)
-        updated = response.get("updates")
-        if updated:
+        if updated := response.get("updates"):
             print(f"updated {updated} bad media_url")
             if self.task:
                 self.task.send_progress(

@@ -21,20 +21,18 @@ def ignore_filelist(filelist: list[str]) -> list[str]:
         "Network Trash Folder",
         "Temporary Items",
     ]
-    cleaned: list[str] = []
-    for file_name in filelist:
-        if file_name.startswith(".") or file_name in to_ignore:
-            continue
-
-        cleaned.append(file_name)
-
+    cleaned: list[str] = [
+        file_name
+        for file_name in filelist
+        if not file_name.startswith(".") and file_name not in to_ignore
+    ]
     return cleaned
 
 
 def randomizor(length: int) -> str:
     """generate random alpha numeric string"""
     pool: str = string.digits + string.ascii_letters
-    return "".join(random.choice(pool) for i in range(length))
+    return "".join(random.choice(pool) for _ in range(length))
 
 
 def requests_headers() -> dict[str, str]:

@@ -43,10 +43,7 @@ class ThumbManagerBase:
                 if response.ok:
                     try:
                         img = Image.open(response.raw)
-                        if isinstance(img, Image.Image):
-                            return img
-                        return self.get_fallback()
-
+                        return img if isinstance(img, Image.Image) else self.get_fallback()
                     except (UnidentifiedImageError, OSError):
                         print(f"failed to open thumbnail: {url}")
                         return self.get_fallback()
@@ -67,9 +64,7 @@ class ThumbManagerBase:
         """get fallback thumbnail if not available"""
         print(f"{self.item_id}: failed to extract thumbnail, use fallback")
         if self.fallback:
-            img_raw = Image.open(self.fallback)
-            return img_raw
-
+            return Image.open(self.fallback)
         app_root = self.CONFIG["application"]["app_root"]
         default_map = {
             "video": os.path.join(
@@ -89,9 +84,7 @@ class ThumbManagerBase:
             ),
         }
 
-        img_raw = Image.open(default_map[self.item_type])
-
-        return img_raw
+        return Image.open(default_map[self.item_type])
 
 
 class ThumbManager(ThumbManagerBase):
@@ -132,7 +125,7 @@ class ThumbManager(ThumbManagerBase):
         img_raw = self.download_raw(url)
         width, height = img_raw.size
 
-        if not width / height == 16 / 9:
+        if width / height != 16 / 9:
             new_height = width / 16 * 9
             offset = (height - new_height) / 2
             img_raw = img_raw.crop((0, offset, width, height - offset))
@@ -177,9 +170,7 @@ class ThumbManager(ThumbManagerBase):
     def _download_channel_banner(self, channel_banner, skip_existing):
         """download channel banner"""
 
-        banner_path = os.path.join(
-            self.CHANNEL_DIR, self.item_id + "_banner.jpg"
-        )
+        banner_path = os.path.join(self.CHANNEL_DIR, f"{self.item_id}_banner.jpg")
         self.item_type = "banner"
         if skip_existing and os.path.exists(banner_path):
             return
@@ -189,7 +180,7 @@ class ThumbManager(ThumbManagerBase):
 
     def _download_channel_tv(self, channel_tv, skip_existing):
         """download channel tv art"""
-        art_path = os.path.join(self.CHANNEL_DIR, self.item_id + "_tvart.jpg")
+        art_path = os.path.join(self.CHANNEL_DIR, f"{self.item_id}_tvart.jpg")
         self.item_type = "tvart"
         if skip_existing and os.path.exists(art_path):
             return
@@ -238,9 +229,7 @@ class ThumbManager(ThumbManagerBase):
         img_blur.save(buffer, format="JPEG")
         img_data = buffer.getvalue()
         img_base64 = base64.b64encode(img_data).decode()
-        data_url = f"data:image/jpg;base64,{img_base64}"
-
-        return data_url
+        return f"data:image/jpg;base64,{img_base64}"
 
 
 class ValidatorCallback:

@@ -107,21 +107,15 @@ class ArchivistViewConfig(View):
 
     def _get_hide_watched(self):
         hide_watched_key = f"{self.user_id}:hide_watched"
-        hide_watched = self.user_conf.get_message(hide_watched_key)["status"]
-
-        return hide_watched
+        return self.user_conf.get_message(hide_watched_key)["status"]
 
     def _get_show_ignore_only(self):
         ignored_key = f"{self.user_id}:show_ignored_only"
-        show_ignored_only = self.user_conf.get_message(ignored_key)["status"]
-
-        return show_ignored_only
+        return self.user_conf.get_message(ignored_key)["status"]
 
     def _get_show_subed_only(self):
         sub_only_key = f"{self.user_id}:show_subed_only"
-        show_subed_only = self.user_conf.get_message(sub_only_key)["status"]
-
-        return show_subed_only
+        return self.user_conf.get_message(sub_only_key)["status"]
 
     def config_builder(self, user_id):
         """build default context for every view"""
@@ -165,19 +159,12 @@ class ArchivistResultsView(ArchivistViewConfig):
             "downloaded": "date_downloaded",
             "published": "published",
         }
-        sort_by = sort_by_map[self.context["sort_by"]]
-
-        return sort_by
+        return sort_by_map[self.context["sort_by"]]
 
     @staticmethod
     def _url_encode(search_get):
         """url encode search form request"""
-        if search_get:
-            search_encoded = urllib.parse.quote(search_get)
-        else:
-            search_encoded = False
-
-        return search_encoded
+        return urllib.parse.quote(search_get) if search_get else False
 
     def _initial_data(self):
         """add initial data dict"""
@@ -237,8 +224,7 @@ class ArchivistResultsView(ArchivistViewConfig):
     def single_lookup(self, es_path):
         """retrieve a single item from url"""
         search = SearchHandler(es_path, config=self.default_conf)
-        result = search.get_data()[0]["source"]
-        return result
+        return search.get_data()[0]["source"]
 
     def initiate_vars(self, request):
         """search in es for vidoe hits"""
@@ -389,15 +375,10 @@ class DownloadView(ArchivistResultsView):
 
     def _update_view_data(self, request):
         """update downloads view specific data dict"""
-        if self.context["show_ignored_only"]:
-            filter_view = "ignore"
-        else:
-            filter_view = "pending"
-
+        filter_view = "ignore" if self.context["show_ignored_only"] else "pending"
         must_list = [{"term": {"status": {"value": filter_view}}}]
 
-        channel_filter = request.GET.get("channel", False)
-        if channel_filter:
+        if channel_filter := request.GET.get("channel", False):
             must_list.append(
                 {"term": {"channel_id": {"value": channel_filter}}}
             )
@@ -462,9 +443,7 @@ class ChannelIdBaseView(ArchivistResultsView):
         """get metadata for channel"""
         path = f"ta_channel/_doc/{channel_id}"
         response, _ = ElasticWrap(path).get()
-        channel_info = SearchProcess(response).process()
-
-        return channel_info
+        return SearchProcess(response).process()
 
     def channel_pages(self, channel_id):
         """get additional context for channel pages"""
@@ -553,18 +532,13 @@ class ChannelIdView(ChannelIdBaseView):
 
         if self.context["results"]:
             channel_info = self.context["results"][0]["source"]["channel"]
-            channel_name = channel_info["channel_name"]
         else:
             # fall back channel lookup if no videos found
             es_path = f"ta_channel/_doc/{channel_id}"
             channel_info = self.single_lookup(es_path)
-            channel_name = channel_info["channel_name"]
-
+        channel_name = channel_info["channel_name"]
         self.context.update(
-            {
-                "title": "Channel: " + channel_name,
-                "channel_info": channel_info,
-            }
+            {"title": f"Channel: {channel_name}", "channel_info": channel_info}
         )
 
         return render(request, "home/channel_id.html", self.context)
@@ -680,7 +654,7 @@ class ChannelIdPlaylistView(ChannelIdBaseView):
         channel_name = channel_info["channel_name"]
         self.context.update(
             {
-                "title": "Channel: Playlists " + channel_name,
+                "title": f"Channel: Playlists {channel_name}",
                 "channel_info": channel_info,
             }
         )
@@ -764,7 +738,7 @@ class PlaylistIdView(ArchivistResultsView):
 
         self.context.update(
             {
-                "title": "Playlist: " + playlist_name,
+                "title": f"Playlist: {playlist_name}",
                 "playlist_info": playlist_info,
                 "playlist_name": playlist_name,
                 "channel_info": channel_info,
@@ -1049,9 +1023,7 @@ class SettingsApplicationView(MinView):
     @staticmethod
     def get_token(request):
         """get existing or create new token of user"""
-        # pylint: disable=no-member
-        token = Token.objects.get_or_create(user=request.user)[0]
-        return token
+        return Token.objects.get_or_create(user=request.user)[0]
 
     def post(self, request):
         """handle form post to update settings"""
@@ -1059,8 +1031,7 @@ class SettingsApplicationView(MinView):
 
         app_form = ApplicationSettingsForm(request.POST)
         if app_form.is_valid():
-            app_form_post = app_form.cleaned_data
-            if app_form_post:
+            if app_form_post := app_form.cleaned_data:
                 print(app_form_post)
                 updated = config_handler.update_config(app_form_post)
                 self.post_process_updated(updated, config_handler.config)

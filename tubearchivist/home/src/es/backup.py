@@ -74,11 +74,11 @@ class ElasticBackup:
         file_name = f"ta_backup-{self.timestamp}-{self.reason}.zip"
         folder = os.path.join(self.cache_dir, "backup")
 
-        to_backup = []
-        for file in os.listdir(folder):
-            if file.endswith(".json"):
-                to_backup.append(os.path.join(folder, file))
-
+        to_backup = [
+            os.path.join(folder, file)
+            for file in os.listdir(folder)
+            if file.endswith(".json")
+        ]
         backup_file = os.path.join(folder, file_name)
 
         comp = zipfile.ZIP_DEFLATED
@@ -163,7 +163,7 @@ class ElasticBackup:
                 os.remove(file_name)
                 continue
 
-            print("restoring: " + json_f)
+            print(f"restoring: {json_f}")
             self.post_bulk_restore(file_name)
             os.remove(file_name)
 
@@ -177,9 +177,7 @@ class ElasticBackup:
     def index_exists(index_name):
         """check if index already exists to skip"""
         _, status_code = ElasticWrap(f"ta_{index_name}").get()
-        exists = status_code == 200
-
-        return exists
+        return status_code == 200
 
     def rotate_backup(self):
         """delete old backups if needed"""
@@ -225,14 +223,10 @@ class BackupCallback:
             es_index = document["_index"]
             action = {"index": {"_index": es_index, "_id": document_id}}
             source = document["_source"]
-            bulk_list.append(json.dumps(action))
-            bulk_list.append(json.dumps(source))
-
+            bulk_list.extend((json.dumps(action), json.dumps(source)))
         # add last newline
         bulk_list.append("\n")
-        file_content = "\n".join(bulk_list)
-
-        return file_content
+        return "\n".join(bulk_list)
 
     def _write_es_json(self, file_content):
         """write nd-json file for es _bulk API to disk"""

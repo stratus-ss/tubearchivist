@@ -84,11 +84,7 @@ class ApiBaseView(APIView):
         es_handler = ElasticWrap(self.search_base)
         response, status_code = es_handler.get(data=self.data)
         self.response["data"] = SearchProcess(response).process()
-        if self.response["data"]:
-            self.status_code = status_code
-        else:
-            self.status_code = 404
-
+        self.status_code = status_code if self.response["data"] else 404
         if pagination:
             self.pagination_handler.validate(
                 response["hits"]["total"]["value"]
@@ -116,10 +112,10 @@ class VideoApiView(ApiBaseView):
         try:
             YoutubeVideo(video_id).delete_media_file()
             status_code = 200
-            message.update({"state": "delete"})
+            message["state"] = "delete"
         except FileNotFoundError:
             status_code = 404
-            message.update({"state": "not found"})
+            message["state"] = "not found"
 
         return Response(message, status=status_code)
 
@@ -290,10 +286,10 @@ class ChannelApiView(ApiBaseView):
         try:
             YoutubeChannel(channel_id).delete_channel()
             status_code = 200
-            message.update({"state": "delete"})
+            message["state"] = "delete"
         except FileNotFoundError:
             status_code = 404
-            message.update({"state": "not found"})
+            message["state"] = "not found"
 
         return Response(message, status=status_code)
 
@@ -382,7 +378,7 @@ class ChannelApiSearchView(ApiBaseView):
             message = f"channel not found: {query}"
             return Response({"message": message, "data": False}, status=404)
 
-        if not parsed["type"] == "channel":
+        if parsed["type"] != "channel":
             message = "expected type channel"
             return Response({"message": message, "data": False}, status=400)
 
@@ -477,8 +473,7 @@ class PlaylistApiView(ApiBaseView):
     def delete(self, request, playlist_id):
         """delete playlist"""
         print(f"{playlist_id}: delete playlist")
-        delete_videos = request.GET.get("delete-videos", False)
-        if delete_videos:
+        if delete_videos := request.GET.get("delete-videos", False):
             YoutubePlaylist(playlist_id).delete_videos_playlist()
         else:
             YoutubePlaylist(playlist_id).delete_metadata()
@@ -574,8 +569,7 @@ class DownloadApiListView(ApiBaseView):
 
             must_list.append({"term": {"status": {"value": query_filter}}})
 
-        filter_channel = request.GET.get("channel", False)
-        if filter_channel:
+        if filter_channel := request.GET.get("channel", False):
             must_list.append(
                 {"term": {"channel_id": {"value": filter_channel}}}
             )
@@ -694,13 +688,10 @@ class SnapshotApiView(ApiBaseView):
     @staticmethod
     def get(request, snapshot_id):
         """handle get request"""
-        # pylint: disable=unused-argument
-        snapshot = ElasticSnapshot().get_single_snapshot(snapshot_id)
-
-        if not snapshot:
+        if snapshot := ElasticSnapshot().get_single_snapshot(snapshot_id):
+            return Response(snapshot)
+        else:
             return Response({"message": "snapshot not found"}, status=404)
-
-        return Response(snapshot)
 
     @staticmethod
     def post(request, snapshot_id):
@@ -873,7 +864,7 @@ class CookieView(ApiBaseView):
         config = AppConfig().config
         valid = RedisArchivist().get_message("cookie:valid")
         response = {"cookie_enabled": config["downloads"]["cookie_import"]}
-        response.update(valid)
+        response |= valid
 
         return Response(response)
 

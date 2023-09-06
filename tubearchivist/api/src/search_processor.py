@@ -31,26 +31,24 @@ class SearchProcess:
             # multiple
             self.processed = []
             all_sources = self.response["hits"]["hits"]
-            for result in all_sources:
-                self.processed.append(self._process_result(result))
-
+            self.processed.extend(self._process_result(result) for result in all_sources)
         return self.processed
 
     def _process_result(self, result):
         """detect which type of data to process"""
         index = result["_index"]
         processed = False
-        if index == "ta_video":
-            processed = self._process_video(result["_source"])
         if index == "ta_channel":
             processed = self._process_channel(result["_source"])
-        if index == "ta_playlist":
-            processed = self._process_playlist(result["_source"])
-        if index == "ta_download":
-            processed = self._process_download(result["_source"])
-        if index == "ta_comment":
+        elif index == "ta_comment":
             processed = self._process_comment(result["_source"])
 
+        elif index == "ta_download":
+            processed = self._process_download(result["_source"])
+        elif index == "ta_playlist":
+            processed = self._process_playlist(result["_source"])
+        elif index == "ta_video":
+            processed = self._process_video(result["_source"])
         return processed
 
     @staticmethod

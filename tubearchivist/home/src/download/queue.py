@@ -88,8 +88,7 @@ class PendingIndex:
         for video in self.all_pending:
             video_id = video["youtube_id"]
             channel_id = video["channel_id"]
-            overwrites = self.channel_overwrites.get(channel_id, False)
-            if overwrites:
+            if overwrites := self.channel_overwrites.get(channel_id, False):
                 self.video_overwrites.update({video_id: overwrites})
 
 
@@ -142,12 +141,11 @@ class PendingInteract:
             "query": {"term": {"channel_id": {"value": self.youtube_id}}},
         }
         response, _ = ElasticWrap("ta_download/_search").get(data=data)
-        hits = response["hits"]["hits"]
-        if not hits:
-            channel_name = "NA"
-        else:
+        if hits := response["hits"]["hits"]:
             channel_name = hits[0]["_source"].get("channel_name", "NA")
 
+        else:
+            channel_name = "NA"
         return {
             "channel_id": self.youtube_id,
             "channel_name": channel_name,
@@ -204,11 +202,10 @@ class PendingList(PendingIndex):
     @staticmethod
     def _get_vid_type(entry):
         """add vid type enum if available"""
-        vid_type_str = entry.get("vid_type")
-        if not vid_type_str:
+        if vid_type_str := entry.get("vid_type"):
+            return VideoTypeEnum(vid_type_str)
+        else:
             return VideoTypeEnum.UNKNOWN
-
-        return VideoTypeEnum(vid_type_str)
 
     def _add_video(self, url, vid_type):
         """add video to list"""
@@ -311,11 +308,10 @@ class PendingList(PendingIndex):
 
         if vid["live_status"] == "was_live":
             vid_type = VideoTypeEnum.STREAMS
+        elif self._check_shorts(vid):
+            vid_type = VideoTypeEnum.SHORTS
         else:
-            if self._check_shorts(vid):
-                vid_type = VideoTypeEnum.SHORTS
-            else:
-                vid_type = VideoTypeEnum.VIDEOS
+            vid_type = VideoTypeEnum.VIDEOS
 
         return self._parse_youtube_details(vid, vid_type)
 
@@ -356,7 +352,5 @@ class PendingList(PendingIndex):
             "vid_type": vid_type.value,
         }
         if self.all_channels:
-            youtube_details.update(
-                {"channel_indexed": vid["channel_id"] in self.all_channels}
-            )
+            youtube_details["channel_indexed"] = vid["channel_id"] in self.all_channels
         return youtube_details

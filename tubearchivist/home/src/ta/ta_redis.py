@@ -49,10 +49,7 @@ class RedisArchivist(RedisBase):
         )
 
         if expire:
-            if isinstance(expire, bool):
-                secs: int = 20
-            else:
-                secs = expire
+            secs = 20 if isinstance(expire, bool) else expire
             self.conn.execute_command("EXPIRE", self.NAME_SPACE + key, secs)
 
         if save:
@@ -67,8 +64,7 @@ class RedisArchivist(RedisBase):
 
     def get_message(self, key: str) -> dict:
         """get message dict from redis"""
-        reply = self.conn.execute_command("JSON.GET", self.NAME_SPACE + key)
-        if reply:
+        if reply := self.conn.execute_command("JSON.GET", self.NAME_SPACE + key):
             return json.loads(reply)
 
         return {"status": False}
@@ -78,23 +74,16 @@ class RedisArchivist(RedisBase):
         reply = self.conn.execute_command(
             "KEYS", self.NAME_SPACE + query + "*"
         )
-        if not reply:
-            return []
-
-        return [i.decode().lstrip(self.NAME_SPACE) for i in reply]
+        return [] if not reply else [i.decode().lstrip(self.NAME_SPACE) for i in reply]
 
     def list_items(self, query: str) -> list:
         """list all matches"""
         all_matches = self.list_keys(query)
-        if not all_matches:
-            return []
-
-        return [self.get_message(i) for i in all_matches]
+        return [] if not all_matches else [self.get_message(i) for i in all_matches]
 
     def del_message(self, key: str) -> bool:
         """delete key from redis"""
-        response = self.conn.execute_command("DEL", self.NAME_SPACE + key)
-        return response
+        return self.conn.execute_command("DEL", self.NAME_SPACE + key)
 
 
 class RedisQueue(RedisBase):
@@ -107,8 +96,7 @@ class RedisQueue(RedisBase):
     def get_all(self):
         """return all elements in list"""
         result = self.conn.execute_command("LRANGE", self.key, 0, -1)
-        all_elements = [i.decode() for i in result]
-        return all_elements
+        return [i.decode() for i in result]
 
     def length(self) -> int:
         """return total elements in list"""
@@ -117,10 +105,7 @@ class RedisQueue(RedisBase):
     def in_queue(self, element) -> str | bool:
         """check if element is in list"""
         result = self.conn.execute_command("LPOS", self.key, element)
-        if result is not None:
-            return "in_queue"
-
-        return False
+        return "in_queue" if result is not None else False
 
     def add_list(self, to_add):
         """add list to queue"""
@@ -135,11 +120,7 @@ class RedisQueue(RedisBase):
     def get_next(self) -> str | bool:
         """return next element in the queue, False if none"""
         result = self.conn.execute_command("LPOP", self.key)
-        if not result:
-            return False
-
-        next_element = result.decode()
-        return next_element
+        return False if not result else result.decode()
 
     def clear(self) -> None:
         """delete list from redis"""
@@ -174,10 +155,7 @@ class TaskRedis(RedisBase):
     def get_single(self, task_id: str) -> dict:
         """return content of single task"""
         result = self.conn.execute_command("GET", self.BASE + task_id)
-        if not result:
-            return {}
-
-        return json.loads(result.decode())
+        return {} if not result else json.loads(result.decode())
 
     def set_key(
         self, task_id: str, message: dict, expire: bool | int = False

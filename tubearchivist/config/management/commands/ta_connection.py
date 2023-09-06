@@ -44,8 +44,7 @@ class Command(BaseCommand):
         redis_conn = RedisArchivist().conn
         for _ in range(5):
             try:
-                pong = redis_conn.execute_command("PING")
-                if pong:
+                if pong := redis_conn.execute_command("PING"):
                     self.stdout.write(
                         self.style.SUCCESS("    ✓ Redis connection verified")
                     )

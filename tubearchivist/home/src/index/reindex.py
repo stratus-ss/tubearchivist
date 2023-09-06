@@ -107,8 +107,7 @@ class ReindexPopulate(ReindexBase):
         path = f"{index_name}/_search?filter_path=hits.total"
         data = {"query": {"match": {active_key: True}}}
         response, _ = ElasticWrap(path).post(data=data)
-        total_hits = response["hits"]["total"]["value"]
-        return total_hits
+        return response["hits"]["total"]["value"]
 
     def _get_daily_should(self, total_hits):
         """calc how many should reindex daily"""
@@ -135,8 +134,7 @@ class ReindexPopulate(ReindexBase):
         }
         response, _ = ElasticWrap(f"{index_name}/_search").get(data=data)
 
-        all_ids = [i["_id"] for i in response["hits"]["hits"]]
-        return all_ids
+        return [i["_id"] for i in response["hits"]["hits"]]
 
 
 class ReindexManual(ReindexBase):
@@ -353,8 +351,7 @@ class Reindex(ReindexBase):
 
         # add back
         channel.json_data["channel_subscribed"] = es_meta["channel_subscribed"]
-        overwrites = es_meta.get("channel_overwrites")
-        if overwrites:
+        if overwrites := es_meta.get("channel_overwrites"):
             channel.json_data["channel_overwrites"] = overwrites
 
         channel.upload_to_es()
@@ -394,15 +391,14 @@ class Reindex(ReindexBase):
             # is not activated, continue reindex
             return True
 
-        valid = CookieHandler(self.config).validate()
-        return valid
+        return CookieHandler(self.config).validate()
 
     def build_message(self):
         """build progress message"""
         message = ""
         for key, value in self.processed.items():
             if value:
-                message = message + f"{value} {key}, "
+                message = f"{message}{value} {key}, "
 
         if message:
             message = f"reindexed {message.rstrip(', ')}"
@@ -437,7 +433,7 @@ class ReindexProgress(ReindexBase):
             "type": request_type,
         }
         state = self._get_state(total, queue_name)
-        progress.update(state)
+        progress |= state
 
         return progress
 
@@ -470,16 +466,12 @@ class ReindexProgress(ReindexBase):
         state_dict = {}
         if self.request_id:
             state = RedisQueue(queue_name).in_queue(self.request_id)
-            state_dict.update({"id": self.request_id, "state": state})
+            state_dict |= {"id": self.request_id, "state": state}
 
             return state_dict
 
-        if total:
-            state = "running"
-        else:
-            state = "empty"
-
-        state_dict.update({"state": state})
+        state = "running" if total else "empty"
+        state_dict["state"] = state
 
         return state_dict
 
@@ -521,18 +513,12 @@ class ChannelFullScan:
     def _get_all_remote(self):
         """get all channel videos"""
         sub = ChannelSubscription()
-        all_remote_videos = sub.get_last_youtube_videos(
-            self.channel_id, limit=False
-        )
-
-        return all_remote_videos
+        return sub.get_last_youtube_videos(self.channel_id, limit=False)
 
     def _get_all_local(self):
         """get all local indexed channel_videos"""
         channel = YoutubeChannel(self.channel_id)
-        all_local_videos = channel.get_channel_videos()
-
-        return all_local_videos
+        return channel.get_channel_videos()
 
     def update(self):
         """build bulk query for updates"""
@@ -547,8 +533,7 @@ class ChannelFullScan:
                 "update": {"_id": video.get("video_id"), "_index": "ta_video"}
             }
             source = {"doc": {"vid_type": video.get("vid_type")}}
-            bulk_list.append(json.dumps(action))
-            bulk_list.append(json.dumps(source))
+            bulk_list.extend((json.dumps(action), json.dumps(source)))
         # add last newline
         bulk_list.append("\n")
         data = "\n".join(bulk_list)

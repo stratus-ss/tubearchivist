@@ -139,9 +139,7 @@ class CookieHandler:
         response = bool(validator.extract("LL"))
         self.store_validation(response)
 
-        # update in redis to avoid expiring
-        modified = validator.obs["cookiefile"].getvalue()
-        if modified:
+        if modified := validator.obs["cookiefile"].getvalue():
             RedisArchivist().set_message("cookie", modified)
 
         if not response:

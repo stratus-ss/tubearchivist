@@ -47,40 +47,29 @@ class Primary(AggBase):
         """make the call"""
         aggregations = self.get()
 
-        videos = {"total": aggregations["video_type"].get("doc_count")}
-        videos.update(
-            {
-                i.get("key"): i.get("doc_count")
-                for i in aggregations["video_type"]["filtered"]["buckets"]
-            }
-        )
-        channels = {"total": aggregations["channel_total"].get("value")}
-        channels.update(
-            {
-                "sub_" + i.get("key_as_string"): i.get("doc_count")
-                for i in aggregations["channel_sub"]["buckets"]
-            }
-        )
-        playlists = {"total": aggregations["playlist_total"].get("value")}
-        playlists.update(
-            {
-                "sub_" + i.get("key_as_string"): i.get("doc_count")
-                for i in aggregations["playlist_sub"]["buckets"]
-            }
-        )
+        videos = {"total": aggregations["video_type"].get("doc_count")} | {
+            i.get("key"): i.get("doc_count")
+            for i in aggregations["video_type"]["filtered"]["buckets"]
+        }
+        channels = {"total": aggregations["channel_total"].get("value")} | {
+            "sub_" + i.get("key_as_string"): i.get("doc_count")
+            for i in aggregations["channel_sub"]["buckets"]
+        }
+        playlists = {"total": aggregations["playlist_total"].get("value")} | {
+            "sub_" + i.get("key_as_string"): i.get("doc_count")
+            for i in aggregations["playlist_sub"]["buckets"]
+        }
         downloads = {
             i.get("key"): i.get("doc_count")
             for i in aggregations["download"]["buckets"]
         }
 
-        response = {
+        return {
             "videos": videos,
             "channels": channels,
             "playlists": playlists,
             "downloads": downloads,
         }
-
-        return response
 
 
 class WatchProgress(AggBase):
@@ -113,20 +102,16 @@ class WatchProgress(AggBase):
         aggregations = self.get()
         buckets = aggregations[self.name]["buckets"]
 
-        response = {}
         all_duration = int(aggregations["total_duration"].get("value"))
-        response.update(
-            {
-                "all": {
-                    "duration": all_duration,
-                    "duration_str": DurationConverter().get_str(all_duration),
-                    "items": aggregations["total_vids"].get("value"),
-                }
+        response = {
+            "all": {
+                "duration": all_duration,
+                "duration_str": DurationConverter().get_str(all_duration),
+                "items": aggregations["total_vids"].get("value"),
             }
-        )
-
+        }
         for bucket in buckets:
-            response.update(self._build_bucket(bucket, all_duration))
+            response |= self._build_bucket(bucket, all_duration)
 
         return response
 
@@ -137,12 +122,8 @@ class WatchProgress(AggBase):
         duration = int(bucket["watch_docs"]["duration"]["value"])
         duration_str = DurationConverter().get_str(duration)
         items = bucket["watch_docs"]["true_count"]["value"]
-        if bucket["key_as_string"] == "false":
-            key = "unwatched"
-        else:
-            key = "watched"
-
-        bucket_parsed = {
+        key = "unwatched" if bucket["key_as_string"] == "false" else "watched"
+        return {
             key: {
                 "duration": duration,
                 "duration_str": duration_str,
@@ -150,8 +131,6 @@ class WatchProgress(AggBase):
                 "items": items,
             }
         }
-
-        return bucket_parsed
 
 
 class DownloadHist(AggBase):
@@ -182,15 +161,13 @@ class DownloadHist(AggBase):
         aggregations = self.get()
         buckets = aggregations[self.name]["buckets"]
 
-        response = [
+        return [
             {
                 "date": i.get("key_as_string"),
                 "count": i.get("doc_count"),
             }
             for i in buckets
         ]
-
-        return response
 
 
 class BiggestChannel(AggBase):
@@ -225,7 +202,7 @@ class BiggestChannel(AggBase):
         aggregations = self.get()
         buckets = aggregations[self.name]["buckets"]
 
-        response = [
+        return [
             {
                 "id": i["key"][1],
                 "name": i["key"][0].title(),
@@ -238,5 +215,3 @@ class BiggestChannel(AggBase):
             }
             for i in buckets
         ]
-
-        return response

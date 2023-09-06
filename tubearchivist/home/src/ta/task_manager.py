@@ -15,18 +15,14 @@ class TaskManager:
         """return all task results"""
         handler = TaskRedis()
         all_keys = handler.get_all()
-        if not all_keys:
-            return False
-
-        return [handler.get_single(i) for i in all_keys]
+        return False if not all_keys else [handler.get_single(i) for i in all_keys]
 
     def get_tasks_by_name(self, task_name):
         """get all tasks by name"""
-        all_results = self.get_all_results()
-        if not all_results:
+        if all_results := self.get_all_results():
+            return [i for i in all_results if i.get("name") == task_name]
+        else:
             return False
-
-        return [i for i in all_results if i.get("name") == task_name]
 
     def get_task(self, task_id):
         """get single task"""
@@ -34,11 +30,10 @@ class TaskManager:
 
     def is_pending(self, task):
         """check if task_name is pending, pass task object"""
-        tasks = self.get_tasks_by_name(task.name)
-        if not tasks:
+        if tasks := self.get_tasks_by_name(task.name):
+            return bool([i for i in tasks if i.get("status") == "PENDING"])
+        else:
             return False
-
-        return bool([i for i in tasks if i.get("status") == "PENDING"])
 
     def is_stopped(self, task_id):
         """check if task_id has received STOP command"""
@@ -48,11 +43,10 @@ class TaskManager:
 
     def get_pending(self, task_name):
         """get all pending tasks of task_name"""
-        tasks = self.get_tasks_by_name(task_name)
-        if not tasks:
+        if tasks := self.get_tasks_by_name(task_name):
+            return [i for i in tasks if i.get("status") == "PENDING"]
+        else:
             return False
-
-        return [i for i in tasks if i.get("status") == "PENDING"]
 
     def init(self, task):
         """pass task object from bind task to set initial pending message"""
@@ -87,13 +81,11 @@ class TaskCommand:
     def start(self, task_name):
         """start task by task_name, only pass task that don't take args"""
         task = ta_tasks.app.tasks.get(task_name).delay()
-        message = {
+        return {
             "task_id": task.id,
             "status": task.status,
             "task_name": task.name,
         }
-
-        return message
 
     def stop(self, task_id, message_key):
         """
@@ -104,7 +96,7 @@ class TaskCommand:
         handler = TaskRedis()
 
         task = handler.get_single(task_id)
-        if not task["name"] in ta_tasks.BaseTask.TASK_CONFIG:
+        if task["name"] not in ta_tasks.BaseTask.TASK_CONFIG:
             raise ValueError
 
         handler.set_command(task_id, "STOP")
